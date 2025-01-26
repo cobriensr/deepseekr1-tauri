@@ -20,8 +20,6 @@ The current stack is:
 
 To-do list:
 
-- Add temperature parameter selection to the main chat window to guide responses based on temperature float
-- Add streaming to the response so you don't watch a window until the response comes through
 - Add image upload capability to parse images
 - Add the ability to download or save the response as a markdown file
 - Use Tauri bundler to create both macOS .dmg and Windows .msi installers
