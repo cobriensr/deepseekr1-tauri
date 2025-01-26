@@ -47,7 +47,7 @@ pub async fn send_deepseek_message(
     Ok(response_text)
 }
 
-// Your existing greet command
+// Original greet command from Tauri
 #[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
