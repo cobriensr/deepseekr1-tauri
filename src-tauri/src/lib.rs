@@ -1,7 +1,8 @@
 // lib.rs
-mod commands;  // Declare commands module
-
+mod commands;
+use dotenv::dotenv;
 use reqwest::{Client, header};
+use std::env;
 use std::error::Error;
 
 pub struct DeepseekState {
@@ -11,8 +12,15 @@ pub struct DeepseekState {
 
 impl DeepseekState {
     pub fn new() -> Result<Self, Box<dyn Error>> {
+        // Load environment variables from .env file
+        dotenv().ok();
+        
+        // Get API key from environment variable with proper error handling
+        let api_key = env::var("DEEPSEEK_API_KEY")
+            .map_err(|_| "DEEPSEEK_API_KEY environment variable not set")?;
+            
         Ok(DeepseekState {
-            api_key: String::from(""),
+            api_key,
             base_url: String::from("https://api.deepseek.com"),
         })
     }
@@ -33,8 +41,8 @@ impl DeepseekState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let deepseek_state = DeepseekState::new()
-        .expect("Failed to create DeepseekState");
-
+        .expect("Failed to create DeepseekState: Environment variables not properly configured");
+        
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(deepseek_state)

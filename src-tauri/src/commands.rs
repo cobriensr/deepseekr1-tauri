@@ -29,7 +29,7 @@ pub async fn send_deepseek_message(
         "model": "deepseek-reasoner",
         "messages": request.messages,
         "temperature": request.temperature,
-        "stream": false
+        "stream": true
     });
 
     let response = client
