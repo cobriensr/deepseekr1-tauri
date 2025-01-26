@@ -12,7 +12,7 @@ pub struct DeepseekState {
 impl DeepseekState {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         Ok(DeepseekState {
-            api_key: String::from("sk-240c541fbe4f42ea8cd91e642fd10710"),
+            api_key: String::from(""),
             base_url: String::from("https://api.deepseek.com"),
         })
     }
