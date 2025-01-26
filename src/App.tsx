@@ -1,14 +1,12 @@
-import { useState } from "react";
+// app.tsx
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-
-// Define message types
 interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
 }
 
-// Separate interface for displayed messages
 interface DisplayMessage {
   role: "user" | "assistant";
   content: string;
@@ -21,16 +19,34 @@ interface ApiResponse {
 }
 
 function App() {
-  // Separate state for system message and conversation messages
-  const [systemMessage, setSystemMessage] = useState<string>(
-    "You are an award winning author and video game narrative designer"
-  );
+  // Initialize systemMessage as empty and load it from the backend
+  const [systemMessage, setSystemMessage] = useState<string>("");
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isEditingSystem, setIsEditingSystem] = useState(false);
+  // Add state for error handling
+  const [systemUpdateError, setSystemUpdateError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // Function to prepare messages for API request by combining system message with conversation
+  // Add useEffect to fetch the initial system message when the component mounts
+  useEffect(() => {
+    const initializeSystemMessage = async () => {
+      try {
+        const message = await invoke<string>("get_system_message");
+        setSystemMessage(message);
+      } catch (error) {
+        console.error("Failed to fetch initial system message:", error);
+        setSystemUpdateError("Failed to load system message. Please refresh the page.");
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initializeSystemMessage();
+  }, []);
+
+  // Update the message preparation function
   const prepareApiMessages = (conversationMessages: DisplayMessage[]): ChatMessage[] => {
     return [
       { role: "system", content: systemMessage },
@@ -38,13 +54,13 @@ function App() {
     ];
   };
 
+  // Update the chat submission handler
   async function handleChatSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || isLoading) return;
 
     setIsLoading(true);
 
-    // Add new user message to conversation
     const newDisplayMessages: DisplayMessage[] = [
       ...messages,
       { role: "user", content: inputMessage.trim() }
@@ -53,7 +69,6 @@ function App() {
     setInputMessage("");
 
     try {
-      // Prepare full message history including system message for API request
       const apiMessages = prepareApiMessages(newDisplayMessages);
       
       const response = await invoke<string>("send_deepseek_message", {
@@ -66,7 +81,6 @@ function App() {
       const responseData = JSON.parse(response) as ApiResponse;
       const assistantMessage = responseData.choices[0].message;
 
-      // Only add assistant message to displayed messages
       setMessages(prevMessages => [...prevMessages, {
         role: "assistant",
         content: assistantMessage.content
@@ -85,11 +99,32 @@ function App() {
     }
   }
 
-  // Function to handle system message updates
-  const handleSystemMessageUpdate = (newMessage: string) => {
-    setSystemMessage(newMessage);
-    setIsEditingSystem(false);
+  // Update the system message handler to communicate with the backend
+  const handleSystemMessageUpdate = async (newMessage: string) => {
+    try {
+      await invoke("update_system_message", { newMessage });
+      setSystemMessage(newMessage);
+      setIsEditingSystem(false);
+      setSystemUpdateError(null);
+    } catch (error) {
+      console.error("Failed to update system message:", error);
+      setSystemUpdateError("Failed to update system message. Please try again.");
+    }
   };
+
+  // Add a cancel handler for system message editing
+  const handleCancelSystemEdit = () => {
+    setIsEditingSystem(false);
+    setSystemUpdateError(null);
+  };
+
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-gray-600">Loading system configuration...</p>
+      </div>
+    );
+  }
 
   return (
     <main className="flex flex-col h-screen p-4 bg-gray-50">
@@ -103,20 +138,38 @@ function App() {
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-sm font-semibold text-gray-700">System Message</h2>
           <button
-            onClick={() => setIsEditingSystem(!isEditingSystem)}
+            onClick={() => isEditingSystem ? handleSystemMessageUpdate(systemMessage) : setIsEditingSystem(true)}
             className="text-blue-500 hover:text-blue-600 text-sm"
           >
             {isEditingSystem ? 'Save' : 'Edit'}
           </button>
         </div>
         {isEditingSystem ? (
-          <textarea
-            value={systemMessage}
-            onChange={(e) => setSystemMessage(e.target.value)}
-            onBlur={(e) => handleSystemMessageUpdate(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3}
-          />
+          <div className="space-y-2">
+            <textarea
+              value={systemMessage}
+              onChange={(e) => setSystemMessage(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={handleCancelSystemEdit}
+                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSystemMessageUpdate(systemMessage)}
+                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Save Changes
+              </button>
+            </div>
+            {systemUpdateError && (
+              <p className="text-red-500 text-sm mt-2">{systemUpdateError}</p>
+            )}
+          </div>
         ) : (
           <p className="text-sm text-gray-600">{systemMessage}</p>
         )}
@@ -141,22 +194,23 @@ function App() {
         ))}
       </div>
 
+      {/* Input Form */}
       <form onSubmit={handleChatSubmit} className="flex gap-2 p-4 bg-white rounded-lg shadow-sm">
         <input
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           className="flex-1 p-2 border rounded-lg custom-focus"
-          placeholder="Type your message..."
+          placeholder={isLoading ? "Please wait..." : "Type your message..."}
           disabled={isLoading}
         />
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !systemMessage}
           className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
                   disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Send
+          {isLoading ? "Sending..." : "Send"}
         </button>
       </form>
     </main>

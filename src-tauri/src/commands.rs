@@ -29,7 +29,7 @@ pub async fn send_deepseek_message(
         "model": "deepseek-reasoner",
         "messages": request.messages,
         "temperature": request.temperature,
-        "stream": true
+        "stream": false
     });
 
     let response = client
@@ -47,8 +47,19 @@ pub async fn send_deepseek_message(
     Ok(response_text)
 }
 
-// Original greet command from Tauri
 #[tauri::command]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+pub fn update_system_message(
+    state: State<'_, DeepseekState>,
+    new_message: String,
+) -> Result<(), String> {
+    state.update_system_message(new_message)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_system_message(
+    state: State<'_, DeepseekState>,
+) -> Result<String, String> {
+    state.get_system_message()
+        .map_err(|e| e.to_string())
 }
