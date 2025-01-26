@@ -2,13 +2,13 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-// Define our message types
+// Define message types
 interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
 }
 
-// Separate interface for displayed messages (excluding system messages)
+// Separate interface for displayed messages
 interface DisplayMessage {
   role: "user" | "assistant";
   content: string;
