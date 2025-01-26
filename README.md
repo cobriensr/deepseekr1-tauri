@@ -1,6 +1,6 @@
 To run the application:
 
-Go to deepseek.com and sign up for an api key, put a dollar or so on your account and then follow the steps below:
+Go to https://www.deepseek.com and sign up for an api key, put a dollar or so on your account and then follow the steps below:
 
 Follow the prerequisites page for Tauri:
 https://v2.tauri.app/start/prerequisites/
