@@ -25,11 +25,13 @@ function App() {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isEditingSystem, setIsEditingSystem] = useState(false);
-  // Add state for error handling
   const [systemUpdateError, setSystemUpdateError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  // Constant for the placeholder text
+  const SYSTEM_MESSAGE_PLACEHOLDER = 
+    "Enter system message here. This is used for caching previous results. New system messages will result in a new uncached response.";
 
-  // Add useEffect to fetch the initial system message when the component mounts
+  // useEffect to fetch the initial system message when the component mounts
   useEffect(() => {
     const initializeSystemMessage = async () => {
       try {
@@ -112,7 +114,7 @@ function App() {
     }
   };
 
-  // Add a cancel handler for system message editing
+  // Cancel handler for system message editing
   const handleCancelSystemEdit = () => {
     setIsEditingSystem(false);
     setSystemUpdateError(null);
@@ -133,7 +135,7 @@ function App() {
         <p className="text-gray-600">Ask questions or request assistance below</p>
       </header>
 
-      {/* System Message Section */}
+      {/* System Message Section with Placeholder */}
       <div className="mb-4 p-4 bg-yellow-50 rounded-lg">
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-sm font-semibold text-gray-700">System Message</h2>
@@ -149,6 +151,7 @@ function App() {
             <textarea
               value={systemMessage}
               onChange={(e) => setSystemMessage(e.target.value)}
+              placeholder={SYSTEM_MESSAGE_PLACEHOLDER}
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={3}
             />
@@ -171,7 +174,13 @@ function App() {
             )}
           </div>
         ) : (
-          <p className="text-sm text-gray-600">{systemMessage}</p>
+          <div>
+            {systemMessage ? (
+              <p className="text-sm text-gray-600">{systemMessage}</p>
+            ) : (
+              <p className="text-sm text-gray-400 italic">{SYSTEM_MESSAGE_PLACEHOLDER}</p>
+            )}
+          </div>
         )}
       </div>
 

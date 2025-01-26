@@ -24,9 +24,8 @@ impl DeepseekState {
             Ok(DeepseekState {
                 api_key,
                 base_url: String::from("https://api.deepseek.com"),
-                system_message: RwLock::new(String::from(
-                    "You are an award winning author and video game narrative designer"
-                )),
+                // Initialize with an empty string
+                system_message: RwLock::new(String::new()),
             })
         }
         pub fn create_client(&self) -> Result<Client, Box<dyn Error>> {
