@@ -2,54 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { DisplayMessage, UseCase } from "./interface";
+import { USE_CASES } from "./constant";
 import "./App.css";
-
-// Define our message interfaces for better type safety
-interface DisplayMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-// Define our use cases and their corresponding temperatures
-interface UseCase {
-  name: string;
-  value: string;
-  temperature: number;
-  description: string;
-}
-
-const USE_CASES: UseCase[] = [
-  {
-    name: "General Conversation",
-    value: "general",
-    temperature: 1.3,
-    description: "Balanced responses for everyday conversation"
-  },
-  {
-    name: "Coding & Math",
-    value: "coding",
-    temperature: 0.0,
-    description: "Precise, deterministic responses for technical tasks"
-  },
-  {
-    name: "Data Analysis",
-    value: "data",
-    temperature: 1.0,
-    description: "Balanced analysis for data processing tasks"
-  },
-  {
-    name: "Translation",
-    value: "translation",
-    temperature: 1.3,
-    description: "Natural language translation tasks"
-  },
-  {
-    name: "Creative Writing",
-    value: "creative",
-    temperature: 1.5,
-    description: "More creative and varied responses"
-  }
-];
 
 function App() {
   // State management for the chat interface
