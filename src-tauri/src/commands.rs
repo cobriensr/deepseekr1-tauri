@@ -108,6 +108,10 @@ pub async fn send_deepseek_message<R: Runtime>(
         }
     }
 
+    // After the while loop in send_deepseek_message:
+    window.emit("streaming-complete", "")
+    .map_err(|e| e.to_string())?;
+
     println!("Stream processing completed");
     Ok(())
 }

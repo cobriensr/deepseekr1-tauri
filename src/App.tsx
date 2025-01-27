@@ -1,5 +1,5 @@
 // app.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
@@ -66,6 +66,19 @@ function App() {
   const [currentContent, setCurrentContent] = useState("");
   const [currentReasoning, setCurrentReasoning] = useState("");
 
+  // Refs for the current streaming response
+  const currentContentRef = useRef(currentContent);
+  const currentReasoningRef = useRef(currentReasoning);
+
+  // Update refs when state changes
+  useEffect(() => {
+    currentContentRef.current = currentContent;
+  }, [currentContent]);
+
+  useEffect(() => {
+    currentReasoningRef.current = currentReasoning;
+  }, [currentReasoning]);
+
   // Function to handle use case changes
   const handleUseCaseChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const newUseCase = USE_CASES.find(uc => uc.value === event.target.value);
@@ -79,29 +92,42 @@ function App() {
     let contentAccumulator = "";
     let reasoningAccumulator = "";
     console.log("Setting up event listeners...");
-  
+
     const setupListeners = async () => {
-      // Listen for content updates
+      // Existing content listener
       const unlistenContent = await listen<string>("streaming-content", (event) => {
-        console.log("Received content chunk:", event.payload);
         contentAccumulator += event.payload;
         setCurrentContent(contentAccumulator);
       });
-  
-      // Listen for reasoning updates
+
+      // Existing reasoning listener
       const unlistenReasoning = await listen<string>("streaming-reasoning", (event) => {
-        console.log("Received reasoning chunk:", event.payload);
         reasoningAccumulator += event.payload;
         setCurrentReasoning(reasoningAccumulator);
       });
-  
+
+      // New completion listener
+      const unlistenComplete = await listen("streaming-complete", () => {
+        const finalContent = currentContentRef.current;
+        const finalReasoning = currentReasoningRef.current;
+        
+        if (finalContent || finalReasoning) {
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: [finalContent, finalReasoning].filter(Boolean).join("\n\nReasoning: ")
+          }]);
+          setCurrentContent("");
+          setCurrentReasoning("");
+        }
+      });
+
       return () => {
-        console.log("Cleaning up listeners");
         unlistenContent();
         unlistenReasoning();
+        unlistenComplete();
       };
     };
-  
+
     const cleanup = setupListeners();
     return () => {
       cleanup.then(cleanupFn => cleanupFn());
