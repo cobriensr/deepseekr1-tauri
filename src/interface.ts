@@ -11,3 +11,10 @@ export interface UseCase {
     temperature: number;
     description: string;
   }
+
+  // Define the props interface for our component
+export interface SystemMessageManagerProps {
+  systemMessage: string;
+  setSystemMessage: (message: string) => void;
+  className?: string;
+}

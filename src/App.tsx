@@ -9,6 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DisplayMessage, UseCase } from "./interface";
 import { USE_CASES } from "./constant";
+import SystemMessageManager from "./SystemMessageManager";
 import "./App.css";
 
 function App() {
@@ -199,6 +200,11 @@ function App() {
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Deepseek Chat Interface</h1>
         <p className="text-gray-600">Ask questions or request assistance below</p>
       </header>
+
+      <SystemMessageManager 
+        systemMessage={systemMessage}
+        setSystemMessage={setSystemMessage}
+      />
 
       {/* Use Case Selector */}
       <div className="mb-4 p-4 bg-blue-50 rounded-lg">
