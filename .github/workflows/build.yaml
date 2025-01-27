@@ -72,9 +72,7 @@ jobs:
           npm install --save-dev @tauri-apps/cli
 
       - name: Build macOS DMG
-        run: |
-              npm run tauri build -- --target x86_64-apple-darwin
-              npm run tauri build -- --target aarch64-apple-darwin
+        run: pnpm tauri build -- --target aarch64-apple-darwin
 
       - name: Upload Artifact (macOS)
         uses: actions/upload-artifact@v4
