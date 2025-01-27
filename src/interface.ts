@@ -1,10 +1,10 @@
-// Define our message interfaces
+// Define the message interfaces
 export interface DisplayMessage {
   role: "user" | "assistant";
   content: string;
   reasoning?: string; // Add reasoning as optional property
 }
-  // Define our use cases and their corresponding temperatures
+  // Define the use cases and their corresponding temperatures
 export interface UseCase {
     name: string;
     value: string;
