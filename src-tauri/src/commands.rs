@@ -1,11 +1,11 @@
 // commands.rs
 use serde::{Deserialize, Serialize};
-use tauri::{State, Window};
+use tauri::{command, State, Window};
 use tauri::Runtime;
 use tauri::Emitter;
 use crate::DeepseekState;
 
-// Update our Delta structure to properly handle optional fields
+// API response structures
 #[derive(Debug, Serialize, Deserialize)]
 struct StreamChunk {
     choices: Vec<Choice>,
@@ -24,6 +24,7 @@ struct Delta {
     reasoning_content: Option<String>,
 }
 
+// Public interface structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub role: String,
@@ -36,12 +37,19 @@ pub struct ChatRequest {
     pub temperature: f32,
 }
 
-#[tauri::command]
+#[derive(Debug, Serialize, Clone)]
+struct CompleteMessage {
+    content: String,
+    reasoning: String,
+}
+
+#[command]
 pub async fn send_deepseek_message<R: Runtime>(
     window: Window<R>,
     state: State<'_, DeepseekState>,
     request: ChatRequest,
 ) -> Result<(), String> {
+    // Set up API request
     let url = format!("{}/v1/chat/completions", state.base_url);
     let client = state.create_client()
         .map_err(|e| e.to_string())?;
@@ -63,6 +71,10 @@ pub async fn send_deepseek_message<R: Runtime>(
 
     println!("Received response from API");
     
+    // Initialize our content buffers
+    let mut content_buffer = String::new();
+    let mut reasoning_buffer = String::new();
+    
     // Process the streaming response
     while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
         let chunk_str = String::from_utf8_lossy(&chunk);
@@ -78,23 +90,29 @@ pub async fn send_deepseek_message<R: Runtime>(
                 continue;
             }
 
+            println!("Processing chunk: {}", json_str);
+
             match serde_json::from_str::<StreamChunk>(json_str) {
                 Ok(parsed) => {
                     if let Some(choice) = parsed.choices.first() {
-                        // Handle content if present
-                        if let Some(content) = &choice.delta.content {
-                            if !content.is_empty() {
-                                println!("Emitting content: {}", content);
-                                window.emit("streaming-content", content)
+                        // Process reasoning content first
+                        if let Some(reason) = &choice.delta.reasoning_content {
+                            if !reason.is_empty() {
+                                reasoning_buffer.push_str(reason);
+                                // Emit reasoning content immediately for streaming display
+                                println!("Streaming reasoning: {}", reason);
+                                window.emit("streaming-reasoning", reason)
                                     .map_err(|e| e.to_string())?;
                             }
                         }
                         
-                        // Handle reasoning content if present
-                        if let Some(reason) = &choice.delta.reasoning_content {
-                            if !reason.is_empty() {
-                                println!("Emitting reasoning: {}", reason);
-                                window.emit("streaming-reasoning", reason)
+                        // Process main content second
+                        if let Some(content) = &choice.delta.content {
+                            if !content.is_empty() {
+                                content_buffer.push_str(content);
+                                // Emit content immediately for streaming display
+                                println!("Streaming content: {}", content);
+                                window.emit("streaming-content", content)
                                     .map_err(|e| e.to_string())?;
                             }
                         }
@@ -108,16 +126,25 @@ pub async fn send_deepseek_message<R: Runtime>(
         }
     }
 
-    // After the while loop in send_deepseek_message:
-    window.emit("streaming-complete", "")
-    .map_err(|e| e.to_string())?;
+    // Send the complete message with both content and reasoning
+    let complete_message = CompleteMessage {
+        content: content_buffer.clone(),
+        reasoning: reasoning_buffer.clone(),
+    };
 
+    // Log the final state for debugging
     println!("Stream processing completed");
+    println!("Final reasoning: {}", reasoning_buffer);
+    println!("Final content: {}", content_buffer);
+
+    // Emit the complete message to the frontend
+    window.emit("streaming-complete", complete_message)
+        .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
-// Command function for updating the system message
-#[tauri::command]
+#[command]
 pub fn update_system_message(
     state: State<'_, DeepseekState>,
     new_message: String,
@@ -127,8 +154,7 @@ pub fn update_system_message(
         .map_err(|e| e.to_string())
 }
 
-// Command function for getting the system message
-#[tauri::command]
+#[command]
 pub fn get_system_message(
     state: State<'_, DeepseekState>,
 ) -> Result<String, String> {

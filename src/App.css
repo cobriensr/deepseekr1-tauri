@@ -35,3 +35,31 @@
   outline: none;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
+
+.prose {
+  line-height: 1.5;
+}
+
+.prose h1 {
+  @apply text-2xl font-bold my-4;
+}
+
+.prose h2 {
+  @apply text-xl font-bold my-3;
+}
+
+.prose ul {
+  @apply list-disc pl-6 my-2;
+}
+
+.prose ol {
+  @apply list-decimal pl-6 my-2;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-gray-300 pl-4 italic text-gray-600;
+}
+
+.prose pre {
+  @apply p-4 rounded bg-gray-800 text-gray-100 overflow-x-auto;
+}

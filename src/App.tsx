@@ -1,4 +1,9 @@
 // app.tsx
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github-dark.css';
+import { markdownComponents, reasoningComponents } from './MarkdownComponent';
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -7,87 +12,33 @@ import { USE_CASES } from "./constant";
 import "./App.css";
 
 function App() {
-  // State management for the chat interface
-  const [systemMessage, setSystemMessage] = useState<string>("");
+  // Core state management
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [systemMessage, setSystemMessage] = useState<string>("");
+  const [selectedUseCase, setSelectedUseCase] = useState<UseCase>(USE_CASES[0]);
+  
+  // UI state
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
-
-  // State management for the use cases
-  const [selectedUseCase, setSelectedUseCase] = useState<UseCase>(USE_CASES[0]);
-
-  // State for the current streaming response
+  
+  // Streaming state
   const [currentContent, setCurrentContent] = useState("");
   const [currentReasoning, setCurrentReasoning] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  
+  // Refs for maintaining state in event listeners
+  const messagesRef = useRef<DisplayMessage[]>([]);
+  const streamingRef = useRef(false);
 
-  // Refs for the current streaming response
-  const currentContentRef = useRef(currentContent);
-  const currentReasoningRef = useRef(currentReasoning);
-
-  // Update refs when state changes
+  // Keep refs in sync with state
   useEffect(() => {
-    currentContentRef.current = currentContent;
-  }, [currentContent]);
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
-    currentReasoningRef.current = currentReasoning;
-  }, [currentReasoning]);
-
-  // Function to handle use case changes
-  const handleUseCaseChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newUseCase = USE_CASES.find(uc => uc.value === event.target.value);
-    if (newUseCase) {
-      setSelectedUseCase(newUseCase);
-    }
-  };
-
-  // Set up event listeners for streaming content
-  useEffect(() => {
-    let contentAccumulator = "";
-    let reasoningAccumulator = "";
-    console.log("Setting up event listeners...");
-
-    const setupListeners = async () => {
-      // Existing content listener
-      const unlistenContent = await listen<string>("streaming-content", (event) => {
-        contentAccumulator += event.payload;
-        setCurrentContent(contentAccumulator);
-      });
-
-      // Existing reasoning listener
-      const unlistenReasoning = await listen<string>("streaming-reasoning", (event) => {
-        reasoningAccumulator += event.payload;
-        setCurrentReasoning(reasoningAccumulator);
-      });
-
-      // New completion listener
-      const unlistenComplete = await listen("streaming-complete", () => {
-        const finalContent = currentContentRef.current;
-        const finalReasoning = currentReasoningRef.current;
-        
-        if (finalContent || finalReasoning) {
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: [finalContent, finalReasoning].filter(Boolean).join("\n\nReasoning: ")
-          }]);
-          setCurrentContent("");
-          setCurrentReasoning("");
-        }
-      });
-
-      return () => {
-        unlistenContent();
-        unlistenReasoning();
-        unlistenComplete();
-      };
-    };
-
-    const cleanup = setupListeners();
-    return () => {
-      cleanup.then(cleanupFn => cleanupFn());
-    };
-  }, []);
+    streamingRef.current = isStreaming;
+  }, [isStreaming]);
 
   // Initialize system message
   useEffect(() => {
@@ -97,7 +48,6 @@ function App() {
         if (message) {
           setSystemMessage(message);
         }
-        console.log("System message initialized:", message);
       } catch (error) {
         console.error("Failed to fetch system message:", error);
       } finally {
@@ -108,58 +58,132 @@ function App() {
     initializeSystemMessage();
   }, []);
 
-  // Handle form submission
+  // Set up streaming event listeners
+  useEffect(() => {
+    let contentAccumulator = "";
+    let reasoningAccumulator = "";
+    let isMounted = true;
+  
+    const setupListeners = async () => {
+      // Listen for reasoning content first
+      const unlistenReasoning = await listen<string>("streaming-reasoning", (event) => {
+        if (!isMounted) return;
+        
+        // Start streaming mode when we get reasoning
+        if (!streamingRef.current) {
+          setIsStreaming(true);
+        }
+        
+        reasoningAccumulator += event.payload;
+        setCurrentReasoning(reasoningAccumulator);
+      });
+  
+      // Then listen for regular content
+      const unlistenContent = await listen<string>("streaming-content", (event) => {
+        if (!isMounted) return;
+        
+        // Ensure streaming mode is on
+        if (!streamingRef.current) {
+          setIsStreaming(true);
+        }
+        
+        contentAccumulator += event.payload;
+        setCurrentContent(contentAccumulator);
+      });
+  
+      // Handle completion
+      const unlistenComplete = await listen<{ content: string, reasoning: string }>(
+        "streaming-complete", 
+        (event) => {
+          if (!isMounted) return;
+  
+          const completeMessage = event.payload;
+          
+          // Add to conversation history
+          setMessages(prevMessages => [...prevMessages, {
+            role: "assistant",
+            content: completeMessage.content,
+            reasoning: completeMessage.reasoning
+          }]);
+  
+          // Reset all states
+          setIsStreaming(false);
+          setCurrentContent("");
+          setCurrentReasoning("");
+          contentAccumulator = "";
+          reasoningAccumulator = "";
+        }
+      );
+  
+      return () => {
+        isMounted = false;
+        unlistenReasoning();
+        unlistenContent();
+        unlistenComplete();
+      };
+    };
+  
+    const cleanupPromise = setupListeners();
+    return () => {
+      cleanupPromise.then(cleanup => cleanup());
+    };
+  }, []);
+
+  // Handle use case selection
+  const handleUseCaseChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newUseCase = USE_CASES.find(uc => uc.value === event.target.value);
+    if (newUseCase) {
+      setSelectedUseCase(newUseCase);
+    }
+  };
+
+  // Handle message submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
-  
+
     setIsLoading(true);
-    console.log("Submitting message:", inputMessage.trim());
-    console.log("Submitting message with temperature:", selectedUseCase.temperature);
-  
-    // Clear current content
-    setCurrentContent("");
-    setCurrentReasoning("");
-  
-    // Create the new message
+
+    // Create and add user message
     const newMessage: DisplayMessage = {
       role: "user",
       content: inputMessage.trim()
     };
-  
-    // Update messages immediately
-    setMessages(prev => [...prev, newMessage]);
+
+    // Update messages with user input
+    setMessages(prevMessages => [...prevMessages, newMessage]);
     setInputMessage("");
-  
+
     try {
-      // Prepare all messages
+      // Get current messages from ref to ensure latest state
+      const currentMessages = messagesRef.current;
+      
+      // Prepare API request
       const apiMessages = [
         { role: "system", content: systemMessage },
-        ...messages,
+        ...currentMessages,
         newMessage
       ];
-  
-      console.log("Sending request to backend");
+
+      // Send request to API
       await invoke("send_deepseek_message", {
         request: {
           messages: apiMessages,
-          temperature: selectedUseCase.temperature // Use the selected temperature
+          temperature: selectedUseCase.temperature
         }
       });
-      console.log("Request completed");
-  
     } catch (error) {
       console.error("Error in submission:", error);
-      setMessages(prev => [...prev, {
+      setMessages(prevMessages => [...prevMessages, {
         role: "assistant",
-        content: "I apologize, but I encountered an error processing your request. Please try again."
+        content: "Error processing request"
       }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show loading screen while initializing
+  // Loading screen
   if (isInitializing) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -168,6 +192,7 @@ function App() {
     );
   }
 
+  // Main UI
   return (
     <main className="flex flex-col h-screen p-4 bg-gray-50">
       <header className="text-center mb-6">
@@ -175,7 +200,7 @@ function App() {
         <p className="text-gray-600">Ask questions or request assistance below</p>
       </header>
 
-      {/* Add Use Case Selector */}
+      {/* Use Case Selector */}
       <div className="mb-4 p-4 bg-blue-50 rounded-lg">
         <div className="flex flex-col space-y-2">
           <label htmlFor="useCase" className="text-sm font-semibold text-gray-700">
@@ -201,6 +226,7 @@ function App() {
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto mb-4 space-y-4 px-4">
+        {/* Render existing messages */}
         {messages.map((message, index) => (
           <div
             key={index}
@@ -211,25 +237,60 @@ function App() {
             <p className="text-sm font-semibold mb-1">
               {message.role === "user" ? "You" : "Assistant"}
             </p>
-            <p className="whitespace-pre-wrap">{message.content}</p>
+            
+            {message.reasoning && (
+              <div className="mb-2 p-2 bg-gray-50 rounded border border-gray-200">
+                <p className="text-xs font-semibold text-gray-500 mb-1">Reasoning:</p>
+                <ReactMarkdown
+                  className="prose prose-sm max-w-none text-gray-600"
+                  remarkPlugins={[remarkGfm]}
+                  components={reasoningComponents}
+                >
+                  {message.reasoning}
+                </ReactMarkdown>
+              </div>
+            )}
+
+            <ReactMarkdown
+              className="prose max-w-none"
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeHighlight]}
+              components={markdownComponents}
+            >
+              {message.content}
+            </ReactMarkdown>
           </div>
         ))}
 
-        {/* Current streaming response */}
-        {(currentContent || currentReasoning) && (
+        {/* Show streaming response */}
+        {isStreaming && (
           <div className="max-w-[80%] p-4 rounded-lg mr-auto bg-white shadow-sm">
             <p className="text-sm font-semibold mb-1">Assistant</p>
-            {currentReasoning && (
-              <div className="mb-2 text-gray-600 italic bg-gray-50 p-2 rounded">
-                Reasoning: {currentReasoning}
-              </div>
-            )}
+            
+            {/* Show reasoning section whenever we're streaming, even if content is empty */}
+            <div className="mb-2 p-2 bg-gray-50 rounded border border-gray-200">
+              <p className="text-xs font-semibold text-gray-500 mb-1">Reasoning:</p>
+              <ReactMarkdown
+                className="prose prose-sm max-w-none text-gray-600"
+                remarkPlugins={[remarkGfm]}
+              >
+                {currentReasoning || 'Thinking...'}
+              </ReactMarkdown>
+            </div>
+            
+            {/* Show content section if we have any */}
             {currentContent && (
-              <p className="whitespace-pre-wrap">
+              <ReactMarkdown
+                className="prose max-w-none"
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+                components={markdownComponents}
+              >
                 {currentContent}
-                <span className="inline-block w-1 h-4 ml-1 bg-blue-500 animate-pulse"/>
-              </p>
+              </ReactMarkdown>
             )}
+            
+            <span className="inline-block w-1 h-4 ml-1 bg-blue-500 animate-pulse" />
           </div>
         )}
       </div>
