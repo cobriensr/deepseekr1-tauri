@@ -22,7 +22,7 @@ To-do list:
 
 - Add image upload capability to parse images
 - Add the ability to download or save the response as a markdown file
-- Use Tauri bundler to create both macOS .dmg and Windows .msi installers
+- Use Tauri bundler to create both macOS .dmg and Windows .msi installers (build pipeline in progress)
 
 ## Recommended IDE Setup
 
