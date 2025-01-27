@@ -36,11 +36,10 @@ export const ReasoningLink: Components['a'] = ({ node, children, ...props }) => 
   </a>
 );
 
-// Update your markdownComponents export
 export const markdownComponents = {
   a: MarkdownLink,
   code: MarkdownCode,
-  reasoningA: ReasoningLink, // Add this line
+  reasoningA: ReasoningLink,
 } as const;
 
 export const reasoningComponents: Components = {
