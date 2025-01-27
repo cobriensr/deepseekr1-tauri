@@ -7,7 +7,7 @@ const SystemMessageManager: React.FC<SystemMessageManagerProps> = ({
   setSystemMessage, 
   className = "" 
 }) => {
-  // Local state management with proper types
+  // Local state management
   const [isEditing, setIsEditing] = useState(false);
   const [tempMessage, setTempMessage] = useState(systemMessage);
   const [isSaving, setIsSaving] = useState(false);
@@ -40,7 +40,6 @@ const SystemMessageManager: React.FC<SystemMessageManagerProps> = ({
     <div className={`mb-4 p-4 bg-yellow-50 rounded-lg ${className}`}>
       <div className="flex flex-col space-y-2">
         <div className="flex justify-between items-center">
-          {/* Added htmlFor to properly associate label with textarea */}
           <label 
             htmlFor="system-message"
             className="text-sm font-semibold text-gray-700"
