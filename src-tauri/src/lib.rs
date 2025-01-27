@@ -5,7 +5,6 @@ use reqwest::{Client, header};
 use std::env;
 use std::error::Error;
 
-// Make our commands module public so its contents can be accessed
 pub mod commands;
 
 // Main state struct for managing DeepSeek client and shared state
