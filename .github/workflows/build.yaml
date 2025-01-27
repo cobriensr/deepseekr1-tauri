@@ -1,0 +1,71 @@
+name: Build Tauri Application
+
+on:
+  push:
+    branches: [ "main" ] # Trigger on pushes to main branch
+  pull_request: # Optional: Trigger on PRs
+    branches: [ "main" ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust (Windows)
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+
+      - name: Install Tauri CLI and Dependencies
+        run: |
+          npm install
+          npm install --save-dev @tauri-apps/cli
+
+      - name: Build Windows MSI
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc
+
+      - name: Upload Artifact (Windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust (macOS)
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Install Tauri CLI and Dependencies
+        run: |
+          npm install
+          npm install --save-dev @tauri-apps/cli
+
+      - name: Build macOS DMG
+        run: npm run tauri build -- --target universal-apple-dwin
+
+      - name: Upload Artifact (macOS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
