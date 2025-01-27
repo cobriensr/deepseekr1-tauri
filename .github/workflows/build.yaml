@@ -17,6 +17,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      
+      - name: Install PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
       - name: Install Rust (Windows)
         uses: actions-rs/toolchain@v1
@@ -49,6 +54,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Install PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
       - name: Install Rust (macOS)
         uses: actions-rs/toolchain@v1
